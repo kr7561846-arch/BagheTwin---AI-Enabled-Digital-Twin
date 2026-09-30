@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Baghewala Digital Twin</title>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+<style>
+:root{--fs:clamp(12px,1.55vh,16px);--bg:#ffffff;--panel:#ffffff;--head:#eaf1f8;--line:#cfd9e4;--sep:#e6ecf2;--tx:#14202c;--dim:#4a5866;--val:#08121c;--ok:#1b7a33;--warn:#b25f00;--bad:#b23a26;--acc:#1f5f99}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--tx);font:var(--fs)/1.3 "Segoe UI",Arial,sans-serif;overflow:hidden}
+.num,.v{font-family:Consolas,"Courier New",monospace;font-variant-numeric:tabular-nums}
+#app{display:grid;height:100%;grid-template-rows:auto minmax(0,1fr) auto;grid-template-columns:minmax(0,22%) minmax(0,1fr) minmax(0,25%);gap:4px;padding:4px}
+header{grid-column:1/4;display:flex;align-items:center;gap:1.4em;background:var(--panel);border:1px solid var(--line);padding:.5em .9em;white-space:nowrap;overflow:hidden}
+header h1{font-size:1.3em;letter-spacing:.5px;font-weight:700;color:var(--val)}
+header .sub{color:var(--dim)}
+header .sp{flex:1}
+.pill{border:1px solid var(--line);padding:.15em .6em;background:#f6f9fc}
+.dot{display:inline-block;width:.6em;height:.6em;border-radius:50%;background:var(--ok);margin-right:.4em}
+.col{display:flex;flex-direction:column;gap:4px;min-height:0;overflow:hidden}
+section{background:var(--panel);border:1px solid var(--line);flex:1 1 auto;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+section>h2{background:var(--head);border-bottom:1px solid var(--line);font-size:.92em;font-weight:700;padding:.3em .6em;display:flex;justify-content:space-between;letter-spacing:.3px;flex:none;white-space:nowrap;overflow:hidden;gap:.6em;color:var(--val)}
+section>h2 small{font-weight:400;color:var(--dim)}
+.rows{flex:1;display:flex;flex-direction:column;min-height:0}
+.rows div.r{flex:1;display:flex;justify-content:space-between;align-items:center;gap:.6em;padding:0 .6em;border-bottom:1px solid var(--sep)}
+.rows div.r:last-child{border:0}
+.r span:first-child{color:var(--dim)}
+.r .v{color:var(--val);font-weight:600}.r .u{color:var(--dim);font-size:.8em;margin-left:.3em}
+.st{font-weight:700}.NORMAL,.ACTIVE,.ok{color:var(--ok)}.WARNING,.warn{color:var(--warn)}.STANDBY{color:var(--dim)}
+.sig{display:inline-block;width:.6em;height:.6em;background:var(--ok);margin-right:.4em}
+.sig.WARNING{background:var(--warn)}
+#comp,#equip{flex:1;display:flex;flex-direction:column;min-height:0}
+.hl{flex:1;display:flex;justify-content:space-between;align-items:center;gap:.6em;padding:0 .6em;border-bottom:1px solid var(--sep)}
+#comp .hl:last-child,#equip .hl:last-child{border:0}
+#center{display:grid;grid-template-rows:auto minmax(0,1fr) 22%;gap:4px;min-height:0;min-width:0}
+#twin{position:relative;min-height:0;display:flex;flex-direction:column}
+#stage{position:relative;flex:1;min-height:0;background:linear-gradient(180deg,#f2f8fe 0%,#dcecfa 100%)}
+#stage canvas{display:block;width:100%;height:100%}
+.lbl{position:absolute;transform:translate(8px,-50%);font-size:.85em;color:var(--val);font-weight:600;background:rgba(255,255,255,.95);border:1px solid var(--acc);padding:.1em .4em;pointer-events:none;white-space:nowrap}
+.lbl .val{display:block;font-family:Consolas,monospace;color:var(--ok);font-weight:600}.lbl.w{border-color:var(--warn)}.lbl.w .val{color:var(--warn)}
+.lbl:before{content:"";position:absolute;left:-8px;top:50%;width:8px;border-top:1px solid var(--acc)}
+#load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--dim)}
+#simtag{position:absolute;top:8px;right:8px;display:none;color:#fff;background:var(--warn);padding:.15em .6em;font-weight:700}
+#hint{position:absolute;left:8px;bottom:6px;color:var(--dim);font-size:.8em}
+#spd{position:absolute;top:8px;left:8px;display:flex;align-items:center;gap:4px;background:rgba(255,255,255,.92);border:1px solid var(--line);padding:.2em .5em;font-size:.85em;color:var(--dim)}
+#spd button{background:#fff;color:var(--tx);border:1px solid var(--line);padding:0 .6em;cursor:pointer;font-size:1em}
+#spd button.on{background:#e3eefa;border-color:var(--acc);color:var(--val);font-weight:700}
+#proc{display:flex;align-items:stretch;background:var(--panel);border:1px solid var(--line)}
+#proc div{flex:1;text-align:center;padding:.3em .1em;font-size:.85em;border-right:1px solid var(--line);position:relative;color:var(--val);font-weight:600}
+#proc div:last-child{border:0}
+#proc div:not(:last-child):after{content:"▶";position:absolute;right:-.5em;top:.4em;font-size:.8em;color:var(--acc);background:var(--panel);z-index:1}
+#proc b{display:block;font-weight:600;color:var(--ok);font-size:.9em}
+#proc div.WARNING b{color:var(--warn)}
+#trends{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;min-height:0}
+.ch{background:var(--panel);border:1px solid var(--line);display:flex;flex-direction:column;min-width:0;min-height:0}
+.ch h3{font-size:.8em;font-weight:700;background:var(--head);padding:.2em .5em;display:flex;justify-content:space-between;flex:none;color:var(--val)}
+.ch canvas{flex:1;min-height:0;width:100%}
+.rng button{background:#fff;color:var(--dim);border:1px solid var(--line);padding:0 .5em;font-size:.95em;cursor:pointer}
+.rng button.on{color:var(--val);border-color:var(--acc);background:#e3eefa}
+.big{padding:.4em .6em;display:grid;grid-template-columns:1fr 1fr;gap:6px;flex:none}
+.big .k{color:var(--dim);font-size:.8em}.big .n{font-size:1.6em;font-weight:700}
+.btns{display:flex;gap:4px;padding:.4em .6em;flex:none}
+.btns button{flex:1;padding:.4em 0;background:#fff;color:var(--tx);border:1px solid var(--line);cursor:pointer;font-size:.9em;font-weight:700}
+.btns button.on{border-color:var(--acc);color:var(--val);background:#e3eefa}
+.btns button#bf.on{border-color:var(--warn);background:#fdebc8}
+.note{color:var(--dim);font-size:.8em;padding:.25em .6em;flex:none}
+footer{grid-column:1/4;display:flex;align-items:center;justify-content:flex-end;background:var(--panel);border:1px solid var(--line);font-size:.85em;padding:.3em .9em}
+#tech{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.2em 1.2em;color:var(--dim)}
+#tech b{color:var(--val);font-weight:600}
+</style>
+</head>
+<body>
+<div id="app">
+<header>
+  <h1>BAGHEWALA DIGITAL TWIN</h1>
+  <span class="sub">Well-to-Surface Monitoring &amp; Fault Detection</span>
+  <span class="sp"></span>
+  <span class="pill"><span class="dot"></span>System Online</span>
+  <span>Baghewala Field, Rajasthan</span>
+  <span class="pill">Well ID: <span class="num" id="wid"></span></span>
+  <span class="pill num" id="clock"></span>
+</header>
+
+<div class="col" id="left">
+  <section><h2>LIVE SENSOR READINGS <small>simulated</small></h2><div class="rows" id="sensors"></div></section>
+  <section><h2>CYCLIC STEAM STIMULATION <span class="st ACTIVE" id="cssStat"></span></h2><div class="rows" id="css"></div></section>
+  <section><h2>SRP MONITORING <span class="st NORMAL" id="srpStat"></span></h2><div class="rows" id="srp"></div></section>
+  <section><h2>PRODUCTION MONITORING <span class="st NORMAL" id="prodStat"></span></h2><div class="rows" id="prod"></div></section>
+</div>
+
+<div id="center">
+  <div id="proc"></div>
+  <section id="twin">
+    <h2>3D DIGITAL TWIN <small>bagehetwin.glb · drag: rotate · wheel: zoom · right-drag: pan</small></h2>
+    <div id="stage">
+      <div id="load">Loading bagehetwin.glb…</div>
+      <div id="simtag">SIMULATED FAULT</div>
+      <div id="spd">Animation speed <button data-s="1">1×</button><button data-s="3" class="on">3×</button><button data-s="6">6×</button><button id="pz">Pause</button></div>
+      <div id="hint">Prototype / Simulated Data — animation is driven by SPM and stroke geometry; speed-up is visual only</div>
+    </div>
+  </section>
+  <div id="trends"></div>
+</div>
+
+<div class="col" id="right">
+  <section style="flex:none"><h2>AI FAULT DETECTION</h2>
+    <div class="big"><div><div class="k">SYSTEM STATUS</div><div class="n st" id="sysStat"></div></div><div><div class="k">ANOMALY SCORE</div><div class="n num" id="score"></div></div></div>
+    <div class="hl" style="flex:none"><span class="k" style="color:var(--dim)">FAULT STATUS</span></div>
+    <div class="note" style="color:var(--tx);font-size:.9em" id="faultTxt"></div>
+    <div class="btns"><button id="bn" class="on">NORMAL MODE</button><button id="bf">SIMULATE FAULT</button></div>
+    <div class="note">Simulated demonstration only. No real field accuracy or prediction is claimed.</div>
+  </section>
+  <section><h2>COMPONENT HEALTH</h2><div id="comp"></div></section>
+  <section><h2>EQUIPMENT HEALTH</h2><div id="equip"></div></section>
+  <section><h2>OPERATING OPTIMIZATION</h2><div class="rows" id="opt"></div><div class="note">Suggested set-points are illustrative. No field optimization has been achieved.</div></section>
+</div>
+
+<footer>
+  <div id="tech"><span>Data: <b>Prototype / Simulated</b></span><span>DB: <b>MySQL</b></span><span>Backend: <b>API Ready</b></span><span>AI: <b>LSTM Autoencoder — Prototype</b></span><span>3D: <b>Three.js</b></span></div>
+</footer>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+
+/* ============ DATA LAYER ============
+   Single object holding all values. Later: MySQL -> Node/FastAPI -> fetch('/api/twin') -> applyData(json). */
+const DATA={
+  wellId:'BGW-HO-01',
+  sensors:{temperature:82.4,pressure:14.6,steamRate:38.0,production:26.5,rodLoad:71.2,spm:6.2,stroke:2.74,efficiency:78,oilTemp:64.8,oilPressure:5.3,vibration:2.1,motorRpm:1180},
+  css:{rate:38.0,pressure:62.0,temp:274,volume:1450,status:'ACTIVE',soak:'—',cutoff:'62 bar / 1800 m³'},
+  opt:{steamVolume:'1450 → 1500 m³',injPressure:'62 bar (max 65)',soak:'7 days',cutoff:'1800 m³',stroke:'2.74 m',spm:'6.2',vfd:'1180 RPM'},
+  anomaly:0.12
+};
+const FAULT={temperature:98.5,vibration:7.8,efficiency:54,anomaly:0.78};
+async function loadData(){ /* future: const r=await fetch('/api/twin'); Object.assign(DATA,await r.json()); */ return DATA;}
+
+const S=DATA.sensors;let fault=false;
+const $=id=>document.getElementById(id);
+const rowsHtml=a=>a.map(([l,id,u])=>`<div class="r"><span>${l}</span><span><span class="v" id="${id}">–</span><span class="u">${u}</span></span></div>`).join('');
+$('sensors').innerHTML=rowsHtml([['Temperature','s_temperature','°C'],['Pressure','s_pressure','bar'],['Steam Injection Rate','s_steamRate','m³/day'],['Production Rate','s_production','m³/day'],['Rod Load','s_rodLoad','kN'],['SPM','s_spm','str/min'],['Stroke Length','s_stroke','m'],['Pump Efficiency','s_efficiency','%'],['Oil Temperature','s_oilTemp','°C'],['Oil Pressure','s_oilPressure','bar'],['Vibration','s_vibration','mm/s'],['Motor Speed','s_motorRpm','RPM']]);
+$('css').innerHTML=rowsHtml([['Steam Injection Rate','c_rate','m³/day'],['Steam Pressure','c_pressure','bar'],['Steam Temperature','c_temp','°C'],['Steam Volume','c_volume','m³'],['Injection Status','c_status',''],['Soak Time','c_soak',''],['Cut-off','c_cutoff','']]);
+$('srp').innerHTML=rowsHtml([['SRP Status','p_status',''],['SPM','p_spm','str/min'],['Stroke Length','p_stroke','m'],['Rod Load','p_rod','kN'],['Pump Efficiency','p_eff','%'],['Motor Speed','p_rpm','RPM']]);
+$('prod').innerHTML=rowsHtml([['Production Rate','d_prod','m³/day'],['Oil Temperature','d_ot','°C'],['Oil Pressure','d_op','bar'],['Pump Efficiency','d_eff','%'],['Production Status','d_status','']]);
+$('opt').innerHTML=[['CSS','','h'],['Steam Volume',DATA.opt.steamVolume],['Injection Pressure',DATA.opt.injPressure],['Soak Time',DATA.opt.soak],['Cut-off',DATA.opt.cutoff],['SRP','','h'],['Stroke Length',DATA.opt.stroke],['SPM',DATA.opt.spm],['Motor/VFD Speed',DATA.opt.vfd]].map(([a,b,h])=>h?`<div class="r" style="background:#eaf1f8"><b>${a}</b></div>`:`<div class="r"><span>${a}</span><span class="v">${b}</span></div>`).join('');
+$('proc').innerHTML=[['CSS STEAM','css'],['RESERVOIR / HEAVY OIL','res'],['SUBSURFACE PUMP','pump'],['SUCKER ROD','rod'],['WELLHEAD','wh'],['SURFACE PRODUCTION','prod']].map(([t,k])=>`<div data-k="${k}">${t}<b>NORMAL</b></div>`).join('');
+$('wid').textContent=DATA.wellId;
+
+const COMP=['Pump','Rod System','Motor','Temperature','Pressure','Vibration','CSS System','Production System'];
+const EQ=['Surface Pumping Unit','Sucker Rod System','Subsurface Pump','Prime Mover','CSS System','Production System'];
+const health=(list,ids)=>list.map((n,i)=>`<div class="hl"><span>${n}</span><span class="st NORMAL" id="${ids}${i}"><span class="sig"></span>NORMAL</span></div>`).join('');
+$('comp').innerHTML=health(COMP,'ch');$('equip').innerHTML=health(EQ,'eh');
+function setH(id,warn){const e=$(id);const s=warn?'WARNING':'NORMAL';e.className='st '+s;e.innerHTML=`<span class="sig ${s}"></span>${s}`;}
+
+/* cur = displayed values (base or fault target + small simulated jitter) */
+const cur={};
+function tick(){
+  const f=fault;
+  const t={temperature:f?FAULT.temperature:S.temperature,vibration:f?FAULT.vibration:S.vibration,efficiency:f?FAULT.efficiency:S.efficiency};
+  for(const k in S){const target=t[k]!==undefined?t[k]:S[k];const j=(Math.random()-.5)*target*.006;cur[k]=(cur[k]===undefined?target:cur[k]+(target-cur[k])*.25)+j;}
+  cur.anomaly=(cur.anomaly===undefined?DATA.anomaly:cur.anomaly+((f?FAULT.anomaly:DATA.anomaly)-cur.anomaly)*.25);
+  const fx={temperature:1,pressure:2,steamRate:1,production:1,rodLoad:1,spm:2,stroke:2,efficiency:0,oilTemp:1,oilPressure:1,vibration:2,motorRpm:0};
+  for(const k in fx){$('s_'+k).textContent=cur[k].toFixed(fx[k]);const e=$('s_'+k);e.classList.toggle('warn',f&&['temperature','vibration','efficiency'].includes(k));}
+  $('c_rate').textContent=S.steamRate.toFixed(1);$('c_pressure').textContent=DATA.css.pressure.toFixed(1);$('c_temp').textContent=DATA.css.temp;$('c_volume').textContent=DATA.css.volume;
+  $('c_status').textContent=DATA.css.status;$('c_soak').textContent=DATA.css.soak;$('c_cutoff').textContent=DATA.css.cutoff;
+  $('cssStat').textContent='CSS '+DATA.css.status;$('cssStat').className='st '+DATA.css.status;
+  $('p_status').textContent=f?'WARNING':'RUNNING';$('p_spm').textContent=cur.spm.toFixed(1);$('p_stroke').textContent=cur.stroke.toFixed(2);$('p_rod').textContent=cur.rodLoad.toFixed(1);$('p_eff').textContent=cur.efficiency.toFixed(0);$('p_rpm').textContent=cur.motorRpm.toFixed(0);
+  $('srpStat').textContent=f?'WARNING':'RUNNING';$('srpStat').className='st '+(f?'WARNING':'NORMAL');
+  $('d_prod').textContent=cur.production.toFixed(1);$('d_ot').textContent=cur.oilTemp.toFixed(1);$('d_op').textContent=cur.oilPressure.toFixed(1);$('d_eff').textContent=cur.efficiency.toFixed(0);
+  $('d_status').textContent=f?'REDUCED':'NORMAL';$('prodStat').textContent=f?'REDUCED':'NORMAL';$('prodStat').className='st '+(f?'WARNING':'NORMAL');
+  $('score').textContent=cur.anomaly.toFixed(2);$('score').style.color=f?'var(--warn)':'var(--ok)';
+  $('sysStat').textContent=f?'WARNING':'NORMAL';$('sysStat').className='n st '+(f?'WARNING':'NORMAL');
+  $('faultTxt').textContent=f?'SIMULATED FAULT: elevated vibration and temperature, reduced pump efficiency':'NO ABNORMAL CONDITION DETECTED';
+  [0,3,5].forEach(i=>setH('ch'+i,f));[1,2,4,6,7].forEach(i=>setH('ch'+i,false));
+  [0,2].forEach(i=>setH('eh'+i,f));[1,3,4,5].forEach(i=>setH('eh'+i,false));
+  document.querySelectorAll('#proc div').forEach(d=>{const w=f&&d.dataset.k==='pump';d.classList.toggle('WARNING',w);d.querySelector('b').textContent=w?'WARNING':'NORMAL';});
+  $('simtag').style.display=f?'block':'none';
+  const d=new Date();$('clock').textContent=d.toLocaleDateString('en-GB')+' '+d.toLocaleTimeString('en-GB');
+  pushTrend();
+}
+
+/* ============ TRENDS ============ */
+const CH=[{k:'temperature',t:'TEMPERATURE °C',c:'#c25a12',min:60,max:110,base:()=>S.temperature},{k:'pressure',t:'PRESSURE bar',c:'#1f6f95',min:10,max:20,base:()=>S.pressure},{k:'vibration',t:'VIBRATION mm/s',c:'#8f7000',min:0,max:10,base:()=>S.vibration},{k:'production',t:'PRODUCTION m³/day',c:'#237a35',min:15,max:35,base:()=>S.production}];
+const RANGES={'1 Hour':60,'6 Hours':72,'24 Hours':96};let range='1 Hour';const N=90;
+$('trends').innerHTML=CH.map((c,i)=>`<div class="ch"><h3><span>${c.t}</span><span class="rng" ${i?'style="display:none"':''}>${Object.keys(RANGES).map(r=>`<button class="${r===range?'on':''}">${r}</button>`).join('')}</span></h3><canvas id="cv${i}"></canvas></div>`).join('');
+const hist={};
+function seed(){CH.forEach(c=>{const b=c.base(),a=(c.max-c.min)*.02*(range==='24 Hours'?3:range==='6 Hours'?2:1);hist[c.k]=Array.from({length:N},(_,i)=>b+Math.sin(i/(range==='1 Hour'?6:range==='6 Hours'?11:17))*a+(Math.random()-.5)*a);});}
+seed();
+document.querySelectorAll('.rng button').forEach(b=>b.onclick=()=>{range=b.textContent;document.querySelectorAll('.rng button').forEach(x=>x.classList.toggle('on',x.textContent===range));seed();draw();});
+function pushTrend(){CH.forEach(c=>{const h=hist[c.k];h.push(cur[c.k]);h.shift();});draw();}
+function draw(){CH.forEach((c,i)=>{const cv=$('cv'+i),r=cv.getBoundingClientRect(),dpr=devicePixelRatio||1;if(!r.width)return;cv.width=r.width*dpr;cv.height=r.height*dpr;const g=cv.getContext('2d');g.scale(dpr,dpr);const W=r.width,H=r.height,L=36,B=16;
+  g.fillStyle='#ffffff';g.fillRect(0,0,W,H);g.font='11px Consolas';g.strokeStyle='#e3e9ef';g.fillStyle='#3d4a58';g.lineWidth=1;
+  for(let j=0;j<=4;j++){const y=6+(H-B-10)*j/4;g.beginPath();g.moveTo(L,y);g.lineTo(W-4,y);g.stroke();g.fillText((c.max-(c.max-c.min)*j/4).toFixed(c.max>50?0:1),2,y+4);}
+  const labels=range==='1 Hour'?['-60m','-40m','-20m','now']:range==='6 Hours'?['-6h','-4h','-2h','now']:['-24h','-16h','-8h','now'];
+  labels.forEach((t,j)=>g.fillText(t,L+(W-L-34)*j/3,H-3));
+  g.strokeStyle=c.c;g.lineWidth=1.8;g.beginPath();hist[c.k].forEach((v,j)=>{const x=L+(W-L-4)*j/(N-1),y=6+(H-B-10)*(1-(v-c.min)/(c.max-c.min));j?g.lineTo(x,Math.max(2,y)):g.moveTo(x,y);});g.stroke();});}
+addEventListener('resize',draw);
+
+/* ============ CONTROLS ============ */
+$('bn').onclick=()=>{fault=false;$('bn').classList.add('on');$('bf').classList.remove('on');};
+$('bf').onclick=()=>{fault=true;$('bf').classList.add('on');$('bn').classList.remove('on');};
+let speed=3,paused=false;
+document.querySelectorAll('#spd button[data-s]').forEach(b=>b.onclick=()=>{speed=+b.dataset.s;document.querySelectorAll('#spd button[data-s]').forEach(x=>x.classList.toggle('on',x===b));});
+$('pz').onclick=()=>{paused=!paused;$('pz').textContent=paused?'Resume':'Pause';$('pz').classList.toggle('on',paused);};
+
+/* ============ 3D DIGITAL TWIN ============ */
+const stage=$('stage');
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.setClearColor(0x000000,0); // CSS light-blue gradient shows through
+stage.prepend(renderer.domElement);
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(40,1,.05,500);
+const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.screenSpacePanning=true;
+scene.add(new THREE.HemisphereLight(0xffffff,0xb7c8d8,1.25));
+const dl=new THREE.DirectionalLight(0xffffff,2.0);dl.position.set(6,10,7);scene.add(dl);
+const dl2=new THREE.DirectionalLight(0xdde9f5,.9);dl2.position.set(-8,4,-6);scene.add(dl2);
+
+const LABELS=[
+ ['Pumping Unit','Walking_Beam',()=>`${cur.spm.toFixed(1)} SPM · ${cur.stroke.toFixed(2)} m`,()=>fault],
+ ['Motor / Gearbox','Gearbox',()=>`${cur.motorRpm.toFixed(0)} RPM · ${cur.vibration.toFixed(1)} mm/s`,()=>fault],
+ ['Wellhead','Wellhead',()=>`${cur.pressure.toFixed(1)} bar · ${cur.oilTemp.toFixed(1)} °C`,()=>false],
+ ['Rod String','Sucker_Rod',()=>`${cur.rodLoad.toFixed(1)} kN`,()=>false],
+ ['Subsurface Pump','Subsurface_Pump',()=>`Eff ${cur.efficiency.toFixed(0)} % · ${cur.production.toFixed(1)} m³/d`,()=>fault],
+ ['Reservoir','Heavy_Oil_Zone',()=>`${DATA.css.temp} °C steam · ${cur.steamRate.toFixed(1)} m³/d`,()=>false],
+ ['Storage Tank','Storage_Tank',()=>`Level ${(TK.level*100).toFixed(0)} % · ${(TK.level*TK.cap).toFixed(0)} m³`,()=>TK.level>0.85]];
+const lbls=[];let model=null,framed=null;
+function resize(){const w=stage.clientWidth,h=stage.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();if(model)fit();}
+function fit(){
+  const box=new THREE.Box3().setFromObject(model),sz=box.getSize(new THREE.Vector3()),c=box.getCenter(new THREE.Vector3());
+  const r=sz.length()/2,d=r/Math.sin(THREE.MathUtils.degToRad(Math.min(camera.fov,camera.fov*camera.aspect)/2));
+  if(!framed){camera.position.copy(c).add(new THREE.Vector3(.85,.45,1).normalize().multiplyScalar(d*.9));controls.target.copy(c);framed=true;}
+  camera.near=d/100;camera.far=d*20;camera.updateProjectionMatrix();controls.minDistance=d*.15;controls.maxDistance=d*3;controls.update();
+}
+
+/* ============ MECHANICAL ANIMATION ============
+   Same geometry as the Blender rig (metres, Blender axes X fwd, Y lateral, Z up).
+   glTF export maps Blender (x,y,z) -> (x,z,-y); a Blender rotation about +Y = rotation about -Z in glTF.
+   Chain: motor pulley -> sheave -> crank (+counterweights) -> pitman arms -> walking beam
+          -> horsehead rope -> polished rod -> sucker rod -> plunger (children of Polished_Rod). */
+const K={A:4.4,B:2.9,R:0.9,L:4.5,PZ:7,CX:-2.9,YP:1.19,WX:4.4,S0:2.9,VIS:3,RM:0.6/0.22};
+K.CZ=K.PZ-Math.sqrt(K.L*K.L-K.R*K.R);
+const B2M=(x,y,z)=>new THREE.Vector3(x,z,-y);
+function solveGamma(b){ // closed-form beam angle for crank angle b (same as Blender driver)
+  const dx=K.CX+K.R*Math.cos(b),dz=K.CZ-K.R*Math.sin(b)-K.PZ,dd=Math.hypot(dx,dz);
+  const c=Math.max(-1,Math.min(1,(K.B*K.B+dd*dd-K.L*K.L)/(2*K.B*dd)));
+  return Math.acos(c)-Math.atan2(dz,dx)-Math.PI;
+}
+const AN={};
+const NAMES={crank:'Crank_Assembly',beam:'Beam_Pivot',rod:'Polished_Rod',pitL:'Pitman_Arm_L',pitR:'Pitman_Arm_R',
+  cabL:'Bridle_Cable_L',cabR:'Bridle_Cable_R',sheave:'Gearbox_Sheave',mpul:'Motor_Pulley',motor:'Prime_Mover',
+  needle:'Wellhead_Pressure_Gauge_Needle',thermo:'Wellhead_Temp_Indicator_Column'};
+const ZA=new THREE.Vector3(0,0,1),XA=new THREE.Vector3(1,0,0),dq=new THREE.Quaternion();
+function rotZ(n,ang){if(!n)return;dq.setFromAxisAngle(ZA,-ang);n.o.quaternion.copy(n.q).multiply(dq);}
+function pitman(n,pinM,endM){
+  if(!n)return;const o=n.o,par=o.parent||model;
+  const P=par.worldToLocal(model.localToWorld(pinM.clone())),Q=par.worldToLocal(model.localToWorld(endM.clone()));
+  o.position.copy(P);o.quaternion.setFromUnitVectors(XA,Q.sub(P).normalize());
+}
+
+/* ---- crude-oil lift particles: advance only while the rod moves UP (plunger lifting fluid) ---- */
+const OIL_PATH=[[2.4,-0.12,-12.4],[4.02,0.06,-12.4],[4.02,0.06,-15.7],[4.51,0.06,-15.7],[4.51,0.06,-0.3],[4.51,0.06,1.4],[4.4,0,1.55],[4.4,-3.6,1.55],[12.2,-3.6,1.55],[12.2,-3.6,4.1],[14,-3.6,4.1],[14,-3.6,3.9]].map(p=>B2M(...p));
+const CUM=[0];for(let i=1;i<OIL_PATH.length;i++)CUM.push(CUM[i-1]+OIL_PATH[i].distanceTo(OIL_PATH[i-1]));
+const PLEN=CUM[CUM.length-1],NP=56;let oilMesh=null,oilPhase=0,prevRod=0,beta=0,tAcc=0;
+function pathAt(s,out){let i=1;while(i<CUM.length-1&&CUM[i]<s)i++;const f=(s-CUM[i-1])/(CUM[i]-CUM[i-1]);out.pos.copy(OIL_PATH[i-1]).lerp(OIL_PATH[i],f);out.r=i<=5?0.055:0.17;}
+function buildOil(){
+  oilMesh=new THREE.InstancedMesh(new THREE.SphereGeometry(1,10,8),new THREE.MeshStandardMaterial({color:0xb56a12,roughness:.35,metalness:.1,emissive:0x3a1c00}),NP);
+  oilMesh.frustumCulled=false;model.add(oilMesh);
+}
+
+/* ============ STORAGE TANK ============
+   Sits at the end of OIL_PATH (Blender coords, metres). Level rises with each upstroke (same signal as the oil particles).
+   Adjust TK.x / TK.y / TK.r / TK.h if it overlaps something in the GLB. */
+const TK={x:14,y:-3.6,r:1.6,h:3.6,cap:100,level:.35,drain:false,liquid:null,hmax:0};
+function buildTank(){
+  const g=new THREE.Group();g.name='Storage_Tank';g.position.copy(B2M(TK.x,TK.y,0));
+  const steel=new THREE.MeshStandardMaterial({color:0xb9c4cf,metalness:.5,roughness:.4});
+  const add=(geo,mat,y)=>{const m=new THREE.Mesh(geo,mat);m.position.y=y;g.add(m);return m;};
+  const H=TK.h-.12;
+  add(new THREE.CylinderGeometry(TK.r+.25,TK.r+.25,.12,48),new THREE.MeshStandardMaterial({color:0x9aa3ab,roughness:.9}),.06); // foundation
+  add(new THREE.CylinderGeometry(TK.r,TK.r,H,48,1,true),new THREE.MeshStandardMaterial({color:0xd5dee6,metalness:.3,roughness:.3,transparent:true,opacity:.3,side:THREE.DoubleSide,depthWrite:false}),.12+H/2); // shell
+  add(new THREE.ConeGeometry(TK.r,.15,48),steel,TK.h+.075);            // roof
+  add(new THREE.CylinderGeometry(.15,.15,.4,16),steel,TK.h+.2);         // inlet nozzle (pipe end is at z=3.9)
+  for(const f of [.25,.5,.75]){const t=add(new THREE.TorusGeometry(TK.r+.01,.025,8,64),steel,.12+H*f);t.rotation.x=Math.PI/2;} // stiffener rings
+  const o=add(new THREE.CylinderGeometry(.1,.1,.6,16),steel,.35);o.rotation.z=Math.PI/2;o.position.x=TK.r+.3; // outlet stub
+  TK.hmax=H-.1;
+  const lg=new THREE.CylinderGeometry(TK.r-.05,TK.r-.05,1,40);lg.translate(0,.5,0);
+  TK.liquid=add(lg,new THREE.MeshStandardMaterial({color:0x4a2a08,roughness:.25,metalness:.15,emissive:0x1a0d00}),.12); // crude
+  TK.liquid.scale.y=TK.level*TK.hmax;
+  model.add(g);
+}
+function tankStep(up,dt){
+  if(!TK.liquid)return;
+  if(TK.drain){TK.level-=.03*dt;if(TK.level<=.15)TK.drain=false;}       // tanker offload
+  else{TK.level+=up*.0012;if(TK.level>=.9)TK.drain=true;}
+  TK.liquid.scale.y=Math.max(.001,TK.level*TK.hmax);
+}
+
+const tmp={pos:new THREE.Vector3(),r:1},mtx=new THREE.Matrix4(),scl=new THREE.Vector3(),qI=new THREE.Quaternion();
+function animate(dt){
+  if(!model||cur.spm===undefined)return;
+  tAcc+=dt;
+  const jit=fault?1+0.15*Math.sin(tAcc*9):1;
+  if(!paused)beta+=cur.spm*2*Math.PI/60*dt*speed*jit;
+  const g=solveGamma(beta);
+  rotZ(AN.crank,beta);rotZ(AN.beam,g);
+  rotZ(AN.sheave,beta*K.VIS);rotZ(AN.mpul,beta*K.VIS*K.RM);
+  const rodDrop=-K.A*g;                                  // rod y offset from mid-stroke (up = +)
+  if(AN.rod)AN.rod.o.position.y=AN.rod.p.y+rodDrop;
+  [AN.cabL,AN.cabR].forEach(c=>{if(c)c.o.scale.y=c.s.y*(1+K.A*g/K.S0);});
+  const cb=Math.cos(beta),sb=Math.sin(beta),cg=Math.cos(g),sg=Math.sin(g);
+  for(const [n,s] of [[AN.pitL,-1],[AN.pitR,1]])
+    pitman(n,B2M(K.CX+K.R*cb,s*K.YP,K.CZ-K.R*sb),B2M(-K.B*cg,s*K.YP,K.PZ+K.B*sg));
+  if(AN.motor)AN.motor.o.position.y=AN.motor.p.y+Math.sin(tAcc*60)*0.004*cur.vibration*(paused?0:1);
+  if(AN.needle)rotZ(AN.needle,THREE.MathUtils.degToRad(270*(cur.pressure*10-145)/300));
+  if(AN.thermo)AN.thermo.o.scale.y=AN.thermo.s.y*Math.max(0.05,cur.temperature/82);
+  // oil: moves only on the upstroke, scaled by pump efficiency
+  if(oilMesh){
+    const up=Math.max(0,rodDrop-prevRod);prevRod=rodDrop;tankStep(up,dt);
+    oilPhase=(oilPhase+up*1.6*(cur.efficiency/78))%PLEN;
+    for(let i=0;i<NP;i++){pathAt((oilPhase+i*PLEN/NP)%PLEN,tmp);mtx.compose(tmp.pos,qI,scl.setScalar(tmp.r));oilMesh.setMatrixAt(i,mtx);}
+    oilMesh.instanceMatrix.needsUpdate=true;
+  }
+}
+
+new GLTFLoader().load('bagehetwin.glb',gltf=>{
+  model=gltf.scene;scene.add(model);
+  let box=new THREE.Box3().setFromObject(model);
+  model.scale.setScalar(8/Math.max(...box.getSize(new THREE.Vector3()).toArray()));model.updateMatrixWorld(true);
+  box=new THREE.Box3().setFromObject(model);model.position.sub(box.getCenter(new THREE.Vector3()));model.updateMatrixWorld(true);
+  model.traverse(o=>{if(/_Bead_|_Path$/.test(o.name))o.visible=false;}); // static exported beads replaced by live particles
+  for(const k in NAMES){const o=model.getObjectByName(NAMES[k]);if(o)AN[k]={o,q:o.quaternion.clone(),p:o.position.clone(),s:o.scale.clone()};}
+  buildOil();buildTank();
+  LABELS.forEach(([t,n,val,warn])=>{const o=model.getObjectByName(n);if(!o)return;const el=document.createElement('div');el.className='lbl';el.innerHTML=`${t}<span class="val"></span>`;stage.appendChild(el);lbls.push({o,el,val:el.querySelector('.val'),fn:val,warn});});
+  $('load').remove();resize();fit();
+},undefined,e=>{$('load').textContent='Could not load bagehetwin.glb — serve via http://localhost:3000 (not file://).';console.error(e);});
+new ResizeObserver(resize).observe(stage);
+const v=new THREE.Vector3(),bx=new THREE.Box3(),clock=new THREE.Clock();
+(function loop(){requestAnimationFrame(loop);
+  animate(Math.min(clock.getDelta(),0.05));
+  controls.update();renderer.render(scene,camera);
+  const w=stage.clientWidth,h=stage.clientHeight;
+  lbls.forEach(({o,el,val,fn,warn})=>{if(cur.spm!==undefined){val.textContent=fn();el.classList.toggle('w',warn());}bx.setFromObject(o).getCenter(v).project(camera);const vis=v.z<1;el.style.display=vis?'block':'none';el.style.left=(v.x*.5+.5)*w+'px';el.style.top=(-v.y*.5+.5)*h+'px';});
+})();
+
+loadData().then(()=>{tick();draw();setInterval(tick,1500);});
+</script>
+</body>
+</html>
